@@ -1,0 +1,177 @@
+#!/bin/bash
+# Wazuh Docker run script
+# November 15, 2016
+
+. /etc/ossec-init.conf
+
+DEFAULT_IP="172.17.0.1"
+
+
+help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -m <address>       Manager address (IP or host name). Default: $DEFAULT_IP."
+    echo "  -d [-d]            Enable debug mode (multiple levels)."
+    echo "  -a <address>       Address to authorize the agent on manager. Default: same as -m."
+    echo "  -p <prefix>        Add an agent name prefix. Default: empty"
+    echo "  --group <group>         Auto assign agent group when registering. Default: empty"
+    echo "  --no-auth          Do not authorize the agent on manager."
+    echo "  --no-logcollector  Don't run OSSEC Logcollector daemon."
+    echo "  --no-syscheck      Don't run Syscheck/Rootcheck daemon."
+    echo "  --no-rootcheck     Disable rootcheck feature."
+    echo "  --tcp              Use TCP instead of UDP."
+    echo "  --no-auto-restart  Enable auto-restart when new config is available."
+    echo "  -q <message>       Send message to queue continuously."
+
+    exit $1
+}
+
+server_addr=$DEFAULT_IP
+
+while [ -n "$1" ]
+do
+    case $1 in
+    "-h"|"--help")
+        help 0
+        ;;
+    "-m")
+        if [[ "$2" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]]
+        then
+            server_addr=$2
+        elif [[ "$2" =~ ^.+\.[[:lower:]]+$ ]]
+        then
+            server_addr=$2
+        else
+            echo "Invalid manager address: $2"
+        fi
+
+        shift 2
+        ;;
+    "-d")
+        debug="-d $debug"
+        shift 1;
+        ;;
+    "-p")
+        prefix=$2
+        shift 1;
+        ;;
+    "--group")
+        group=$2
+        shift 1;
+        ;;        
+    "-a")
+        if [[ "$2" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]]
+        then
+            auth_addr=$2
+        elif [[ "$2" =~ ^.+\.[[:lower:]]+$ ]]
+        then
+            auth_addr=$2
+        else
+            echo "Invalid auth address: $2"
+        fi
+
+        shift 2;
+        ;;
+    "--no-auth")
+        no_auth=1
+        shift 1
+        ;;
+    "--no-logcollector")
+        no_logcollector=1
+        shift 1
+        ;;
+    "--no-syscheck")
+        no_syscheck=1
+        shift 1
+        ;;
+    "--no-rootcheck")
+        no_rootcheck=1
+        shift 1
+        ;;
+    "--tcp")
+        tcp=1
+        shift 1
+        ;;
+    "--no-auto-restart")
+        auto_restart=0
+        shift 1
+        ;;
+    "-q")
+        if [ -n "$2" ]
+        then
+            if [[ "$2" =~ ^[[:alnum:]]\:[[:print:]]+\: ]]
+            then
+                queue=$2
+            else
+                echo "Invalid queue message: $2"
+            fi
+        else
+            echo "Empty queue message"
+        fi
+
+        shift 2
+        ;;
+    *)
+        echo "Unknown parameter: $1"
+        shift
+    esac
+done
+
+sed -i "s=<address>.*</address>=<address>$server_addr</address>=g" $DIRECTORY/etc/ossec.conf
+
+if [ -n "$no_rootcheck" ]
+then
+    sed -i ':a;N;$!ba;s-<rootcheck>\n    <disabled>no</disabled>-<rootcheck>\n    <disabled>yes</disabled>-g' $DIRECTORY/etc/ossec.conf
+fi
+
+if [ -n "$no_syscheck" ]
+then
+    sed -i ':a;N;$!ba;s-<syscheck>\n    <disabled>no</disabled>-<syscheck>\n    <disabled>yes</disabled>-g' $DIRECTORY/etc/ossec.conf
+fi
+
+if [ -n "$tcp" ]
+then
+    sed -i "s-<protocol>udp</protocol>-<protocol>tcp</protocol>-g" $DIRECTORY/etc/ossec.conf
+fi
+
+if [ -n "$auto_restart" ]
+then
+     sed -i "s-<auto_restart>yes</auto_restart>-<auto_restart>no</auto_restart>-g" $DIRECTORY/etc/ossec.conf
+fi
+
+if [ -z "$no_auth" ]; then
+    if [ -z "$auth_addr" ]
+    then
+        auth_addr=$server_addr
+    fi
+
+    if [ -z "$prefix" ]
+    then
+        $DIRECTORY/bin/agent-auth -m $auth_addr 
+    else
+        $DIRECTORY/bin/agent-auth -m $auth_addr -A "$prefix$(hostname)"
+    fi
+
+    if [ "$?" != "0" ]
+    then
+        exit 1
+    fi
+fi
+
+$DIRECTORY/bin/ossec-execd $debug
+$DIRECTORY/bin/ossec-agentd $debug
+$DIRECTORY/bin/wazuh-modulesd $debug
+$DIRECTORY/bin/ossec-syscheckd $debug
+
+if [ -z "$no_logcollector" ]
+then
+    $DIRECTORY/bin/ossec-logcollector $debug
+fi
+
+if [ -n "$queue" ]
+then
+    wqueue "$queue" &
+fi
+
+tail -F $DIRECTORY/logs/ossec.log

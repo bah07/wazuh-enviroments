@@ -1,0 +1,124 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# USAGE:
+#
+# vagrant --custom-version=3.6.1 up <box>
+#           ^^wazuh_version^^^     ^^box^^
+
+require 'fileutils'
+require 'getoptlong'
+
+opts = GetoptLong.new(
+  [ '--custom-version', GetoptLong::OPTIONAL_ARGUMENT ]
+)
+
+version = "3.7.0"
+
+opts.each do |opt, arg|
+    case opt
+    when '--custom-version'
+        version = arg
+    end
+end
+
+# Options: centospkg, ubuntupkg, centosbranch, ubuntubranch
+oscentos = "centosbranch"
+osubuntu = "ubuntubranch"
+
+manager_ip = "10.0.0.2"
+
+Vagrant.configure(2) do |config|
+
+    ####################################################################################################################
+    ## Managers
+    ####################################################################################################################
+
+    config.vm.define :man_ubuntu16 do |man_ubuntu16|
+        man_ubuntu16.vm.post_up_message = "This is the #{osubuntu} wazuh manager #{version} ip:#{manager_ip}"
+        man_ubuntu16.vm.box = "ubuntu/xenial64"
+        FileUtils.cp("./provisioning/wazuh_shell", "./man_ubuntu16")
+        man_ubuntu16.vm.hostname = "manubuntu16"
+        man_ubuntu16.vm.network :private_network, ip: "#{manager_ip}"
+		man_ubuntu16.vm.provider "man_ubuntu16" do |pmv|
+            pmv.memory = 2048
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./man_ubuntu16", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        man_ubuntu16.vm.provision :shell, path: "./provisioning/manager.sh", args: "#{osubuntu} #{version}"
+    end
+
+    config.vm.define :man_ubuntu18 do |man_ubuntu18|
+        man_ubuntu18.vm.post_up_message = "This is the #{osubuntu} wazuh manager #{version} ip:#{manager_ip}"
+        man_ubuntu18.vm.box = "ubuntu/bionic64"
+        FileUtils.cp("./provisioning/wazuh_shell", "./man_ubuntu18")
+        man_ubuntu18.vm.hostname = "manubuntu18"
+        man_ubuntu18.vm.network :private_network, ip: "#{manager_ip}"
+		man_ubuntu18.vm.provider "man_ubuntu18" do |pmv|
+            pmv.memory = 2048
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./man_ubuntu18", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        man_ubuntu18.vm.provision :shell, path: "./provisioning/manager.sh", args: "#{osubuntu} #{version}"
+    end
+
+    config.vm.define :man_centos7 do |man_centos7|
+        man_centos7.vm.post_up_message = "This is the #{osubuntu} wazuh manager #{version} ip:#{manager_ip}"
+        man_centos7.vm.box = "centos/7"
+        FileUtils.cp("./provisioning/wazuh_shell", "./man_centos7")
+        man_centos7.vm.hostname = "mancentos7"
+        man_centos7.vm.network :private_network, ip: "#{manager_ip}"
+		man_centos7.vm.provider "man_centos7" do |pmv|
+            pmv.memory = 2048
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./man_centos7", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        man_centos7.vm.provision :shell, path: "./provisioning/manager.sh", args: "#{oscentos} #{version}"
+    end
+
+    ####################################################################################################################
+    ## Agents
+    ####################################################################################################################
+
+    config.vm.define :ag_ubuntu16 do |ag_ubuntu16|
+        ag_ubuntu16.vm.post_up_message = "This is the #{osubuntu} wazuh agent #{version} ip:#{manager_ip}"
+        ag_ubuntu16.vm.box = "ubuntu/xenial64"
+        FileUtils.cp("./provisioning/wazuh_shell", "./ag_ubuntu16")
+        ag_ubuntu16.vm.hostname = "agubuntu16"
+        ag_ubuntu16.vm.network :private_network, ip: "10.0.0.21"
+		ag_ubuntu16.vm.provider "ag_ubuntu16" do |pmv|
+            pmv.memory = 512
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./ag_ubuntu16", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        ag_ubuntu16.vm.provision :shell, path: "./provisioning/agent.sh", args: "#{osubuntu} #{version} #{manager_ip}"
+    end
+
+    config.vm.define :ag_ubuntu18 do |ag_ubuntu18|
+        ag_ubuntu18.vm.post_up_message = "This is the #{osubuntu} wazuh agent #{version} ip:#{manager_ip}"
+        ag_ubuntu18.vm.box = "ubuntu/bionic64"
+        FileUtils.cp("./provisioning/wazuh_shell", "./ag_ubuntu18")
+        ag_ubuntu18.vm.hostname = "agubuntu18"
+        ag_ubuntu18.vm.network :private_network, ip: "10.0.0.31"
+		ag_ubuntu18.vm.provider "ag_ubuntu18" do |pmv|
+            pmv.memory = 512
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./ag_ubuntu18", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        ag_ubuntu18.vm.provision :shell, path: "./provisioning/agent.sh", args: "#{osubuntu} #{version} #{manager_ip}"
+    end
+
+    config.vm.define :ag_centos7 do |ag_centos7|
+        ag_centos7.vm.post_up_message = "This is the #{osubuntu} wazuh agent #{version} ip:#{manager_ip}"
+        ag_centos7.vm.box = "centos/7"
+        FileUtils.cp("./provisioning/wazuh_shell", "./ag_centos7")
+        ag_centos7.vm.hostname = "agcentos7"
+        ag_centos7.vm.network :private_network, ip: "10.0.0.41"
+		ag_centos7.vm.provider "ag_centos7" do |pmv|
+            pmv.memory = 512
+            pmv.cpus   = 1
+	    end
+        config.vm.synced_folder "./ag_centos7", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+        ag_centos7.vm.provision :shell, path: "./provisioning/agent.sh", args: "#{oscentos} #{version} #{manager_ip}"
+    end
+end
