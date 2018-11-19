@@ -2,8 +2,10 @@
 
 sobox=$1
 type=$2
-version=$3
+branch=$3
 os="ubuntu"
+ip_manager=$4
+ip_agent=$5
 
 # Wazuh-tools
 mv /vagrant/wazuh_shell /root/.wazuh_shell
@@ -14,16 +16,16 @@ apt-get update
 apt-get install git make gcc gdb automake autoconf libtool nano -y
 git fetch
 cd /home/vagrant
-git clone https://github.com/wazuh/wazuh -b $version wazuh
+git clone https://github.com/wazuh/wazuh -b $branch wazuh
 cd wazuh/src
 make clean-internals
 make deps
-make TARGET=agent DEBUG=true
+make TARGET=$type DEBUG=true
 (echo "";echo "";sleep 0.2;echo "agent";sleep 0.2;echo "";) | bash ../install.sh
 
 # Configuring
-sed -i "s=<address>.*</address>=<address>$ip</address>=g" /var/ossec/etc/ossec.conf
+sed -i "s=<address>.*</address>=<address>$ip_manager</address>=g" /var/ossec/etc/ossec.conf
 
 # Register
-/var/ossec/bin/agent-auth -m $ip -A ag-$os-$version
+/var/ossec/bin/agent-auth -m $ip_manager -I $ip_agent -A $type-$os-$branch
 /var/ossec/bin/ossec-control start
