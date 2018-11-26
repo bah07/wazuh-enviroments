@@ -26,7 +26,7 @@ elif
     make clean-internals
     make deps
     make TARGET=$type DEBUG=true
-    (echo "";echo "";sleep 0.2;echo "$type";sleep 0.2;echo "";) | bash ../install.sh
+    (echo "";echo "";sleep 0.2;echo "$type";sleep 0.2;echo "";) | ../install.sh
 fi
 
 # Wazuh-tools
