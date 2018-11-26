@@ -7,6 +7,10 @@ ip_manager=$3
 ip_agent=$4
 installation=$5
 
+# Wazuh-tools
+mv /vagrant/wazuh_shell /root/.wazuh_shell
+echo ". $HOME/.wazuh_shell" >> /root/.bashrc
+source /root/.bashrc
 
 echo "Configuring $os $branch via $installation"
 if [ $installation = "packages" ]; then
@@ -17,7 +21,7 @@ if [ $installation = "packages" ]; then
 
     # Install manager
     yum install -y nano wazuh-$type-$version*
-elif
+else
     yum install git make gcc gdb automake autoconf libtool nano net-tools -y
     git fetch
     cd /home/vagrant
@@ -29,17 +33,12 @@ elif
     (echo "";echo "";sleep 0.2;echo "$type";sleep 0.2;echo "";) | ../install.sh
 fi
 
-# Wazuh-tools
-mv /vagrant/wazuh_shell /root/.wazuh_shell
-echo ". $HOME/.wazuh_shell" >> /root/.bashrc
-source /root/.bashrc
-
 if [ $type = "agent" ]; then
     # Configuring
     sed -i "s=<address>.*</address>=<address>$ip_manager</address>=g" /var/ossec/etc/ossec.conf
     # Register
     agent-auth -m $ip_manager -I $ip_agent -A $type-$os-$branch
     ossec-control start
-elif
+else
     ossec-authd -d
 fi
