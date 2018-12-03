@@ -19,11 +19,12 @@ require 'getoptlong'
 # CentOS
 sobox="centos/7"
 agent_ip="10.0.0.21"
+kibana_ip="10.0.0.11"
 shellprovision="centos.sh"
 
-manager_ip="192.168.1.60"
+manager_ip="10.0.0.1"
 
-version="3.7"
+version="3.7.1"
 type="agent"
 installation="packages"
 
@@ -52,6 +53,7 @@ opts = GetoptLong.new(
     [ '--plugin-source', GetoptLong::NO_ARGUMENT ],
     [ '--plugin-version', GetoptLong::NO_ARGUMENT ],
     [ '--debug', GetoptLong::NO_ARGUMENT ],
+    [ '--prune', GetoptLong::NO_ARGUMENT ],
 
     ## custom options
     [ '--version', GetoptLong::OPTIONAL_ARGUMENT ],
@@ -87,14 +89,30 @@ Vagrant.configure(2) do |config|
             pmv.cpus   = "#{cpu}"
 	    end
         config.vm.synced_folder "./box",
-                "/vagrant",
+                "/home/vagrant/shared",
                 type: "nfs",
                 nfs_version: 4,
                 nfs_udp: false
         box.vm.provision :shell,
                 path: "./provisioning/#{shellprovision}",
-                args: "#{type} #{version} #{manager_ip} #{agent_ip} #{installation}"
+                args: "#{type} #{version} #{manager_ip} #{installation}"
     end
+
+    ####################################################################################
+    ## Kibana
+    ####################################################################################
+
+	config.vm.define "kibana" do |kibana|
+        kibana.vm.post_up_message = "Box centos/7 kibana dev ip:#{kibana_ip}"
+        kibana.vm.box = "centos/7"
+        kibana.vm.provision :shell, path: "./provisioning/kibana.sh"
+        kibana.vm.network :private_network, ip: "#{kibana_ip}"
+        kibana.vm.provider "virtualbox" do |pmv|
+            pmv.memory = 3400
+            pmv.cpus   = 1
+        end
+        kibana.vm.hostname = "wkibana"
+	end
 
     ####################################################################################################################
     ## Managers
