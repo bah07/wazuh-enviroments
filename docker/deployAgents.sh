@@ -25,14 +25,20 @@ max=$1
 image=$2
 version=$3
 
-for ip in 172.17.{0..250}.{2..252}; do
+docker network create --subnet=172.18.0.0/16 wazuhnet
+
+for ip in 172.18.1.{2..252}; do
     cname=$image-$version-$id
-    #docker run --privileged -i --network wazuhnet --ip 172.18.0.2 --volume /home/borja/archivos/docker/shared:/shared --hostname=wag-centos-3.7.0-1 --name=wag-centos-3.7.0-1 wag-centos:3.7.0 /usr/local/bin/run -m 172.17.0.1 -dd
-    docker run --privileged -i --volume $shared:/shared --hostname=$cname --name=$cname $image:$version tail -f /dev/null &
+    docker run \
+        --privileged -i --network wazuhnet --ip $ip \
+        --volume /home/borja/archivos/docker/shared:/shared \
+        --hostname=$cname --name=$cname $image:$version \
+        tail -f /dev/null &
+    #docker run --privileged -i --volume $shared:/shared --hostname=$cname --name=$cname $image:$version tail -f /dev/null &
     echo "Container $cname created at '$ip'..."
 
     if [ $id -eq $max ]; then
-    break
+      break
     fi
     id=$[ $id + 1 ]
 done    

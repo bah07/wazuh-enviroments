@@ -11,7 +11,7 @@ mv /home/vagrant/shared/wazuh_shell /root/.wazuh_shell
 echo ". $HOME/.wazuh_shell" >> /root/.bashrc
 source /root/.bashrc
 
-echo "Configuring $os $version via $installation"
+echo "Configuring $os $type $version via $installation"
 if [ $installation = "packages" ]; then
     yum install net-tools nano -y
     # DEV Repositories

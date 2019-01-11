@@ -4,7 +4,7 @@
 
 . /etc/ossec-init.conf
 
-DEFAULT_IP="172.17.0.1"
+DEFAULT_IP="172.18.0.2"
 
 
 help() {

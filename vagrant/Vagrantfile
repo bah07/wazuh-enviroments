@@ -9,27 +9,27 @@ require 'getoptlong'
 
 
 # Config all in:
+kibana_ip="10.0.0.11"
+manager_ip="10.0.0.1"
+memory="2048"
+cpu="1"
 
 # Ubuntu
 #sobox="ubuntu/xenial64"
-#agent_ip="10.0.0.11"
-#hostname="ubu16-"
 #shellprovision="ubuntu.sh"
 
 # CentOS
+# vagrant --boxname=worker --version=3.8 --type=manager --installation=packages --node_ip=10.0.0.15 up node-worker
+# vagrant --boxname=agent1 --version=3.8 --type=agent --installation=packages --node_ip=10.0.0.20 up node-agent1
 sobox="centos/7"
-agent_ip="10.0.0.21"
-kibana_ip="10.0.0.11"
 shellprovision="centos.sh"
 
-manager_ip="10.0.0.1"
-
-version="3.7.1"
-type="agent"
+# Options
+boxname="defaultname"
+version="3.8"
+type="manager"
 installation="packages"
-
-memory="2048"
-cpu="1"
+node_ip="10.0.0.20"
 
 opts = GetoptLong.new(
     # Native Vagrant options
@@ -56,34 +56,42 @@ opts = GetoptLong.new(
     [ '--prune', GetoptLong::NO_ARGUMENT ],
 
     ## custom options
+    [ '--boxname', GetoptLong::OPTIONAL_ARGUMENT ],
     [ '--version', GetoptLong::OPTIONAL_ARGUMENT ],
     [ '--type', GetoptLong::OPTIONAL_ARGUMENT ],
+    [ '--installation', GetoptLong::OPTIONAL_ARGUMENT ],
+    [ '--node_ip', GetoptLong::OPTIONAL_ARGUMENT ],
 )
 
 opts.each do |opt, arg|
     case opt
+    when '--boxname'
+        boxname=arg
     when '--version'
         version=arg
     when '--type'
         type=arg
+    when '--installation'
+        installation=arg
+    when '--node_ip'
+        node_ip=arg
     end
 end
 
+hostname="#{boxname}"+"#{version}"
 
-hostname="#{type}"+"-centos7-"+"#{version}"
 
 Vagrant.configure(2) do |config|
 
     ####################################################################################
     ## All in
     ####################################################################################
-
-    config.vm.define :"box" do |box|
-        box.vm.post_up_message = "Box #{sobox} wazuh #{type} #{version} ip:#{agent_ip}"
+    config.vm.define "node-#{boxname}" do |box|
+        box.vm.post_up_message = "Box #{sobox} wazuh #{type} #{version} ip:#{node_ip}"
         box.vm.box = "#{sobox}"
         FileUtils.cp("./provisioning/wazuh_shell", "./box")
         box.vm.hostname = "#{hostname}"
-        box.vm.network :private_network, ip: "#{agent_ip}"
+        box.vm.network :private_network, ip: "#{node_ip}"
 		box.vm.provider "box" do |pmv|
             pmv.memory = "#{memory}"
             pmv.cpus   = "#{cpu}"
